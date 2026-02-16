@@ -78,6 +78,9 @@ class ClashOfClansService:
                     "badge_url": api_response["clan"].get("badgeUrls", {}).get("large", "")
                 }
             
+            # Extract upgrades in progress
+            upgrades_in_progress = ClashOfClansService._extract_upgrades(api_response)
+            
             return {
                 "name": api_response.get("name", "Unknown"),
                 "player_tag": api_response.get("tag", ""),
@@ -95,19 +98,130 @@ class ClashOfClansService:
                 "spells_trained": len(api_response.get("spells", [])),
                 "heroes_upgraded": len(api_response.get("heroes", [])),
                 "threat_level": "N/A",
-                "clan_info": clan_info
+                "clan_info": clan_info,
+                "upgrades": upgrades_in_progress
             }
         except Exception as e:
             print(f"Error parsing player data: {e}")
             return None
     
     @staticmethod
+    def _extract_upgrades(api_response: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract buildings, research, and pet upgrades in progress"""
+        from datetime import datetime
+        
+        upgrades = {
+            "buildings_upgrading": [],
+            "research_upgrading": [],
+            "pets_upgrading": []
+        }
+        
+        try:
+            # Extract buildings under construction
+            for building in api_response.get("buildingsUnderConstruction", []):
+                upgrade = {
+                    "name": building.get("name", "Unknown"),
+                    "level": building.get("level", 0),
+                    "newLevel": building.get("newLevel", building.get("level", 0)),
+                    "finishTime": building.get("finishTime", ""),
+                    "finishTimeUnix": building.get("finishTimeUnix", 0),
+                    "type": "building"
+                }
+                # Add time remaining calculation
+                if upgrade["finishTime"]:
+                    upgrade["isFinished"] = False
+                upgrades["buildings_upgrading"].append(upgrade)
+            
+            # Extract research/spells under construction
+            for research in api_response.get("researchUnderConstruction", []):
+                upgrade = {
+                    "name": research.get("name", "Unknown"),
+                    "level": research.get("level", 0),
+                    "newLevel": research.get("newLevel", research.get("level", 0)),
+                    "finishTime": research.get("finishTime", ""),
+                    "finishTimeUnix": research.get("finishTimeUnix", 0),
+                    "type": "research"
+                }
+                if upgrade["finishTime"]:
+                    upgrade["isFinished"] = False
+                upgrades["research_upgrading"].append(upgrade)
+            
+            # Extract pets under construction (TH11+)
+            for pet in api_response.get("petsUnderConstruction", []):
+                upgrade = {
+                    "name": pet.get("name", "Unknown"),
+                    "level": pet.get("level", 0),
+                    "newLevel": pet.get("newLevel", pet.get("level", 0)),
+                    "finishTime": pet.get("finishTime", ""),
+                    "finishTimeUnix": pet.get("finishTimeUnix", 0),
+                    "type": "pet"
+                }
+                if upgrade["finishTime"]:
+                    upgrade["isFinished"] = False
+                upgrades["pets_upgrading"].append(upgrade)
+            
+        except Exception as e:
+            print(f"Error extracting upgrades: {e}")
+        
+        return upgrades
+    
+    @staticmethod
     def _get_mock_player_data(player_tag: str) -> Dict[str, Any]:
         """Return mock Clash of Clans data for development/demo purposes"""
         import random
+        from datetime import datetime, timedelta
         
         th_levels = list(range(1, 17))
         roles = ["member", "elder", "co-leader", "leader"]
+        
+        # Generate some mock upgrades in progress
+        upgrades = {
+            "buildings_upgrading": [],
+            "research_upgrading": [],
+            "pets_upgrading": []
+        }
+        
+        # Random building upgrades
+        if random.random() > 0.3:
+            for _ in range(random.randint(1, 3)):
+                finish_time = datetime.utcnow() + timedelta(hours=random.randint(1, 72))
+                upgrades["buildings_upgrading"].append({
+                    "name": random.choice(["Gold Storage", "Elixir Storage", "Town Hall", "Cannon", "Archer Tower", "Mortar", "Wizard Tower"]),
+                    "level": random.randint(1, 14),
+                    "newLevel": random.randint(2, 15),
+                    "finishTime": finish_time.isoformat() + "Z",
+                    "finishTimeUnix": int(finish_time.timestamp()),
+                    "type": "building",
+                    "isFinished": False
+                })
+        
+        # Random research upgrades
+        if random.random() > 0.4:
+            for _ in range(random.randint(0, 2)):
+                finish_time = datetime.utcnow() + timedelta(hours=random.randint(1, 120))
+                upgrades["research_upgrading"].append({
+                    "name": random.choice(["Barbarian", "Archer", "Fireball", "Lightning Spell", "Healing Spell"]),
+                    "level": random.randint(1, 13),
+                    "newLevel": random.randint(2, 14),
+                    "finishTime": finish_time.isoformat() + "Z",
+                    "finishTimeUnix": int(finish_time.timestamp()),
+                    "type": "research",
+                    "isFinished": False
+                })
+        
+        # Random pet upgrades (TH11+)
+        if random.random() > 0.6:
+            for _ in range(random.randint(0, 1)):
+                finish_time = datetime.utcnow() + timedelta(hours=random.randint(1, 48))
+                upgrades["pets_upgrading"].append({
+                    "name": random.choice(["L.A.S.S.I", "Electro Owl", "Mighty Yak", "Pet Dragon"]),
+                    "level": random.randint(1, 10),
+                    "newLevel": random.randint(2, 11),
+                    "finishTime": finish_time.isoformat() + "Z",
+                    "finishTimeUnix": int(finish_time.timestamp()),
+                    "type": "pet",
+                    "isFinished": False
+                })
         
         return {
             "name": f"Player_{player_tag[-4:]}",
@@ -133,7 +247,8 @@ class ClashOfClansService:
                 "name": "Demo Clan",
                 "tag": "#P92VQC8UG",
                 "badge_url": "https://via.placeholder.com/64"
-            }
+            },
+            "upgrades": upgrades
         }
     
     @staticmethod
@@ -224,6 +339,37 @@ class ClashOfClansService:
         except Exception as e:
             print(f"Error fetching troop data: {e}")
             return ClashOfClansService._get_mock_troop_data()
+    
+    @staticmethod
+    def get_upgrades(player_tag: str) -> Optional[Dict[str, Any]]:
+        """Get upgrades in progress (buildings, research, pets)"""
+        try:
+            player_data = ClashOfClansService.get_player_data(player_tag)
+            if player_data and "upgrades" in player_data:
+                upgrades = player_data["upgrades"]
+                
+                # Calculate time remaining for each upgrade
+                from datetime import datetime
+                now = datetime.utcnow()
+                
+                for upgrade_list in [upgrades.get("buildings_upgrading", []),
+                                   upgrades.get("research_upgrading", []),
+                                   upgrades.get("pets_upgrading", [])]:
+                    for upgrade in upgrade_list:
+                        if "finishTime" in upgrade and upgrade["finishTime"]:
+                            try:
+                                finish_dt = datetime.fromisoformat(upgrade["finishTime"].replace('Z', '+00:00'))
+                                time_diff = (finish_dt - now).total_seconds()
+                                upgrade["timeRemaining"] = max(0, int(time_diff))
+                                upgrade["isFinished"] = time_diff <= 0
+                            except:
+                                upgrade["isFinished"] = False
+                
+                return upgrades
+            return None
+        except Exception as e:
+            print(f"Error fetching upgrades: {e}")
+            return None
     
     @staticmethod
     def _get_mock_troop_data() -> Dict[str, Any]:

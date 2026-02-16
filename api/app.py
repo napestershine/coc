@@ -202,6 +202,40 @@ def get_account_stats(account_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/accounts/<int:account_id>/upgrades', methods=['GET'])
+def get_upgrades(account_id):
+    """Get upgrades in progress (buildings, research, pets)"""
+    try:
+        account = get_account(account_id)
+        
+        if not account:
+            return jsonify({'success': False, 'error': 'Account not found'}), 404
+        
+        player_tag = account['player_tag']
+        upgrades = ClashOfClansService.get_upgrades(player_tag)
+        
+        if not upgrades:
+            upgrades = {
+                'buildings_upgrading': [],
+                'research_upgrading': [],
+                'pets_upgrading': []
+            }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'account_id': account_id,
+                'player_tag': player_tag,
+                'player_name': account.get('player_info', {}).get('name', 'Unknown'),
+                'upgrades': upgrades
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting upgrades: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/accounts/<int:account_id>', methods=['DELETE'])
 def delete_account_endpoint(account_id):
     """Remove an account from tracking"""
