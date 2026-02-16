@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request
-from models import create_account, get_account, get_all_accounts, update_account, delete_account, update_account_stats
-from coc_service import COCService
+from models import (
+    create_account, get_account, get_all_accounts, delete_account,
+    update_player_info, update_clan_info, update_troop_stats
+)
+from coc_service import ClashOfClansService
 import logging
 
 app = Flask(__name__)
@@ -18,8 +21,8 @@ logger = logging.getLogger(__name__)
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
-        'message': 'Welcome to CoC Account Manager API',
-        'version': '1.0.0',
+        'message': 'Welcome to Clash of Clans Account Manager API',
+        'version': '2.0.0',
         'endpoints': {
             'accounts': '/api/accounts',
             'health': '/api/health'
@@ -31,18 +34,18 @@ def home():
 def health():
     return jsonify({
         'status': 'healthy',
-        'service': 'coc-api',
-        'version': '1.0.0'
+        'service': 'clash-of-clans-api',
+        'version': '2.0.0'
     })
 
 
 # ============================================================================
-# CoC ACCOUNT MANAGEMENT ENDPOINTS
+# CLASH OF CLANS ACCOUNT MANAGEMENT ENDPOINTS
 # ============================================================================
 
 @app.route('/api/accounts', methods=['GET'])
 def list_accounts():
-    """Get all managed CoC accounts"""
+    """Get all managed Clash of Clans accounts"""
     try:
         accounts = get_all_accounts()
         return jsonify({
@@ -57,44 +60,60 @@ def list_accounts():
 
 @app.route('/api/accounts', methods=['POST'])
 def add_account():
-    """Add a new CoC account to track"""
+    """Add a new Clash of Clans account to track"""
     try:
         data = request.get_json()
         
-        if not data or 'username' not in data:
-            return jsonify({'success': False, 'error': 'Username is required'}), 400
+        if not data or 'player_tag' not in data:
+            return jsonify({'success': False, 'error': 'player_tag is required'}), 400
         
-        username = data.get('username', '').strip()
+        player_tag = data.get('player_tag', '').strip()
         
-        if not username:
-            return jsonify({'success': False, 'error': 'Username cannot be empty'}), 400
+        if not player_tag:
+            return jsonify({'success': False, 'error': 'player_tag cannot be empty'}), 400
         
-        # Fetch player data from CoC
-        player_data = COCService.get_player_data(username)
+        # Ensure player_tag starts with #
+        if not player_tag.startswith('#'):
+            player_tag = '#' + player_tag
+        
+        # Fetch player data from Clash of Clans
+        player_data = ClashOfClansService.get_player_data(player_tag)
         
         if not player_data:
             return jsonify({'success': False, 'error': 'Could not fetch player data'}), 404
         
         # Create account entry
-        account = create_account(username)
+        account = create_account(player_tag)
         
-        # Update with fetched stats
-        stats = {
-            'level': player_data.get('level'),
-            'rank': player_data.get('rank'),
-            'global_rank': player_data.get('global_rank'),
-            'clashes_count': player_data.get('clashes_count'),
-            'wins': player_data.get('wins'),
-            'win_rate': player_data.get('win_rate', 'N/A'),
-            'country': player_data.get('country', ''),
-            'bio': player_data.get('bio', '')
+        # Update with fetched player info
+        player_info = {
+            'name': player_data.get('name', 'Unknown'),
+            'town_hall_level': player_data.get('town_hall_level', 0),
+            'exp_level': player_data.get('exp_level', 0),
+            'trophies': player_data.get('trophies', 0),
+            'best_trophies': player_data.get('best_trophies', 0),
+            'war_stars': player_data.get('war_stars', 0),
+            'attack_wins': player_data.get('attack_wins', 0),
+            'defense_wins': player_data.get('defense_wins', 0),
+            'clan_name': player_data.get('clan_name', 'No Clan'),
+            'clan_rank': player_data.get('clan_rank', 'N/A'),
+            'role': player_data.get('role', 'N/A'),
+            'troops_trained': player_data.get('troops_trained', 0),
+            'spells_trained': player_data.get('spells_trained', 0),
+            'heroes_upgraded': player_data.get('heroes_upgraded', 0),
+            'threat_level': player_data.get('threat_level', 'N/A')
         }
         
-        updated_account = update_account_stats(account['id'], stats)
+        updated_account = update_player_info(account['id'], player_info)
+        
+        # Store clan info if available
+        if player_data.get('clan_info'):
+            update_clan_info(account['id'], player_data['clan_info'])
+            updated_account = get_account(account['id'])
         
         return jsonify({
             'success': True,
-            'message': f'Account {username} added successfully',
+            'message': f'Account {player_tag} added successfully',
             'data': updated_account
         }), 201
         
@@ -112,20 +131,32 @@ def get_account_details(account_id):
         if not account:
             return jsonify({'success': False, 'error': 'Account not found'}), 404
         
-        # Fetch fresh data from CoC
-        player_data = COCService.get_player_data(account['username'])
+        # Fetch fresh data from Clash of Clans
+        player_data = ClashOfClansService.get_player_data(account['player_tag'])
         
         if player_data:
-            stats = {
-                'level': player_data.get('level'),
-                'rank': player_data.get('rank'),
-                'global_rank': player_data.get('global_rank'),
-                'clashes_count': player_data.get('clashes_count'),
-                'wins': player_data.get('wins'),
-                'is_online': player_data.get('is_online', False),
-                'win_rate': player_data.get('win_rate', 'N/A')
+            player_info = {
+                'name': player_data.get('name', 'Unknown'),
+                'town_hall_level': player_data.get('town_hall_level', 0),
+                'exp_level': player_data.get('exp_level', 0),
+                'trophies': player_data.get('trophies', 0),
+                'best_trophies': player_data.get('best_trophies', 0),
+                'war_stars': player_data.get('war_stars', 0),
+                'attack_wins': player_data.get('attack_wins', 0),
+                'defense_wins': player_data.get('defense_wins', 0),
+                'clan_name': player_data.get('clan_name', 'No Clan'),
+                'clan_rank': player_data.get('clan_rank', 'N/A'),
+                'role': player_data.get('role', 'N/A'),
+                'troops_trained': player_data.get('troops_trained', 0),
+                'spells_trained': player_data.get('spells_trained', 0),
+                'heroes_upgraded': player_data.get('heroes_upgraded', 0),
+                'threat_level': player_data.get('threat_level', 'N/A')
             }
-            account = update_account_stats(account_id, stats)
+            account = update_player_info(account_id, player_info)
+            
+            if player_data.get('clan_info'):
+                update_clan_info(account_id, player_data['clan_info'])
+                account = get_account(account_id)
         
         return jsonify({
             'success': True,
@@ -139,28 +170,30 @@ def get_account_details(account_id):
 
 @app.route('/api/accounts/<int:account_id>/stats', methods=['GET'])
 def get_account_stats(account_id):
-    """Get statistics for a specific account"""
+    """Get detailed statistics for a specific account"""
     try:
         account = get_account(account_id)
         
         if not account:
             return jsonify({'success': False, 'error': 'Account not found'}), 404
         
-        username = account['username']
+        player_tag = account['player_tag']
         
         # Fetch fresh stats
-        player_data = COCService.get_player_data(username)
-        clash_history = COCService.get_clash_history(username)
-        current_clash = COCService.get_current_clash(username)
+        player_data = ClashOfClansService.get_player_data(player_tag)
+        clan_info = ClashOfClansService.get_clan_info(
+            player_data.get('clan_info', {}).get('tag', '') if player_data else ''
+        )
+        troop_data = ClashOfClansService.get_troop_data(player_tag)
         
         return jsonify({
             'success': True,
             'data': {
                 'account_id': account_id,
-                'username': username,
-                'stats': account.get('stats', {}),
-                'current_clash': current_clash,
-                'recent_clashes': clash_history
+                'player_tag': player_tag,
+                'player_info': account.get('player_info', {}),
+                'clan_info': clan_info,
+                'troops': troop_data.get('troops', []) if troop_data else []
             }
         })
         
@@ -178,12 +211,12 @@ def delete_account_endpoint(account_id):
         if not account:
             return jsonify({'success': False, 'error': 'Account not found'}), 404
         
-        username = account['username']
+        player_tag = account['player_tag']
         delete_account(account_id)
         
         return jsonify({
             'success': True,
-            'message': f'Account {username} removed successfully'
+            'message': f'Account {player_tag} removed successfully'
         })
         
     except Exception as e:
@@ -193,30 +226,42 @@ def delete_account_endpoint(account_id):
 
 @app.route('/api/accounts/<int:account_id>/refresh', methods=['POST'])
 def refresh_account(account_id):
-    """Refresh account data from CoC"""
+    """Refresh account data from Clash of Clans"""
     try:
         account = get_account(account_id)
         
         if not account:
             return jsonify({'success': False, 'error': 'Account not found'}), 404
         
-        username = account['username']
-        player_data = COCService.get_player_data(username)
+        player_tag = account['player_tag']
+        player_data = ClashOfClansService.get_player_data(player_tag)
         
         if not player_data:
             return jsonify({'success': False, 'error': 'Could not fetch player data'}), 404
         
-        stats = {
-            'level': player_data.get('level'),
-            'rank': player_data.get('rank'),
-            'global_rank': player_data.get('global_rank'),
-            'clashes_count': player_data.get('clashes_count'),
-            'wins': player_data.get('wins'),
-            'is_online': player_data.get('is_online', False),
-            'win_rate': player_data.get('win_rate', 'N/A')
+        player_info = {
+            'name': player_data.get('name', 'Unknown'),
+            'town_hall_level': player_data.get('town_hall_level', 0),
+            'exp_level': player_data.get('exp_level', 0),
+            'trophies': player_data.get('trophies', 0),
+            'best_trophies': player_data.get('best_trophies', 0),
+            'war_stars': player_data.get('war_stars', 0),
+            'attack_wins': player_data.get('attack_wins', 0),
+            'defense_wins': player_data.get('defense_wins', 0),
+            'clan_name': player_data.get('clan_name', 'No Clan'),
+            'clan_rank': player_data.get('clan_rank', 'N/A'),
+            'role': player_data.get('role', 'N/A'),
+            'troops_trained': player_data.get('troops_trained', 0),
+            'spells_trained': player_data.get('spells_trained', 0),
+            'heroes_upgraded': player_data.get('heroes_upgraded', 0),
+            'threat_level': player_data.get('threat_level', 'N/A')
         }
         
-        updated_account = update_account_stats(account_id, stats)
+        updated_account = update_player_info(account_id, player_info)
+        
+        if player_data.get('clan_info'):
+            update_clan_info(account_id, player_data['clan_info'])
+            updated_account = get_account(account_id)
         
         return jsonify({
             'success': True,
