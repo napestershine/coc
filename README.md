@@ -1,16 +1,17 @@
-# Clash of Code Account Manager
+# Clash of Clans Account Manager
 
-A full-stack application to track and manage multiple Clash of Code accounts in one place.
+A full-stack application to track and manage multiple Clash of Clans player accounts in one place.
 
 ## 🎯 Features
 
-- ✅ Track multiple CoC accounts simultaneously
-- ✅ View real-time account statistics and rankings
-- ✅ Check online/offline status
-- ✅ Monitor clash history and performance
+- ✅ Track multiple Clash of Clans accounts simultaneously
+- ✅ View Town Hall level, trophies, and war stats
+- ✅ Monitor clan information and player rank
+- ✅ Track attack and defense wins
 - ✅ Beautiful Material 3 mobile interface
 - ✅ Fast and responsive REST API
 - ✅ Easy account management (add/delete)
+- ✅ Real-time data sync with official Clash of Clans API
 
 ## 🏗️ Project Structure
 
@@ -49,10 +50,16 @@ flutter run
 
 ## 📱 App Usage
 
-1. **Add Account**: Tap the **+** button and enter CoC username
-2. **View Details**: Tap any account to see full statistics
-3. **Refresh Data**: Pull to refresh or tap refresh button
-4. **Delete Account**: Long press and select delete
+1. **Add Account**: Tap the **+** button and enter Clash of Clans player tag (e.g., #P92VQC8UG)
+2. **View Details**: Tap any account to see full statistics including Town Hall, trophies, clan info
+3. **Refresh Data**: Pull to refresh or tap refresh button to sync latest data
+4. **Delete Account**: Use menu to remove account from tracker
+
+## 🔄 Player Tag Format
+
+- Player tags start with `#` followed by alphanumeric characters
+- Example: `#P92VQC8UG`
+- Find your tag in-game under Profile → Player Information
 
 ## 🔗 API Endpoints
 
@@ -85,7 +92,8 @@ flutter run
 - Material 3 Design
 
 **Integration:**
-- HTTP-based API communication
+- Official Clash of Clans API (https://api.clashofclans.com/v1)
+- HTTP-based REST API communication
 - JSON data format
 
 ## 💻 Requirements
@@ -93,6 +101,7 @@ flutter run
 ### Backend
 - Python 3.8+
 - pip
+- COC API Key (optional for demo mode)
 
 ### Frontend
 - Flutter SDK 3.0+
@@ -100,32 +109,49 @@ flutter run
 
 ## 📋 Account Statistics Tracked
 
-- Player Level
-- Rank and Global Rank
-- Total Clashes Played
-- Total Wins
-- Win Rate
-- Country
-- Online Status
-- Last Updated Time
+**Player Info:**
+- Player Name and Tag
+- Town Hall Level (TH1-TH14+)
+- Trophies and Best Trophies
+- Experience Level
+- War Stars
+- Attack Wins / Defense Wins
+- Threat Level
+
+**Clan Info:**
+- Clan Name
+- Clan Rank
+- Member Role (Leader, Co-leader, Member, Elder)
+- Clan Level
+
+**Combat Stats:**
+- Troops Trained Count
+- Spells Trained Count
+- Heroes Upgraded Count
+- Attack/Defense History
 
 ## 🔄 Data Flow
 
 ```
-Flutter App → HTTP → Flask API → CoC Service → CoC
-    ↑                ↓                          ↓
-    ← HTTP Response ← Process Data ← Fetch Data
+Flutter App → HTTP → Flask API → Clash of Clans Service → Official CoC API
+    ↑                ↓                                              ↓
+    ← HTTP Response ← Process Data ← Get Player Data ← api.clashofclans.com
 ```
 
 ## ⚙️ Configuration
 
-### API Configuration
+### API Configuration with Clash of Clans API Key
 
-Edit `api/.env`:
+1. Get your API key from [developer.clashofclans.com](https://developer.clashofclans.com)
+2. Create `api/.env` file:
+
 ```
+COC_API_KEY=your_api_key_here
 FLASK_ENV=development
 FLASK_DEBUG=True
 ```
+
+3. Without API key, the system runs in **demo mode** with generated mock data
 
 ### App Configuration
 
@@ -141,16 +167,26 @@ const String API_BASE_URL = 'http://192.168.x.x:5000';
 
 ## 🧪 Testing
 
-### Test API
+### Test API is Healthy
 ```bash
 curl http://localhost:5000/api/health
 ```
 
-### Test Add Account
+### Test Add Clash of Clans Account
 ```bash
 curl -X POST http://localhost:5000/api/accounts \
   -H "Content-Type: application/json" \
-  -d '{"username": "player123"}'
+  -d '{"player_tag": "#P92VQC8UG"}'
+```
+
+### List All Accounts
+```bash
+curl http://localhost:5000/api/accounts
+```
+
+### Get Account Stats
+```bash
+curl http://localhost:5000/api/accounts/1/stats
 ```
 
 ## 🐛 Troubleshooting
@@ -158,10 +194,17 @@ curl -X POST http://localhost:5000/api/accounts \
 **API won't start**
 - Ensure port 5000 is not in use
 - Check Python is installed: `python --version`
+- Check requirements installed: `pip install -r requirements.txt`
 
 **App can't connect**
-- Verify API is running
-- Check URL in `api_service.dart`
+- Verify API is running on correct port
+- Check URL in `api_service.dart` matches your setup
+- Ensure firewall allows connection
+
+**Player tag format errors**
+- Player tags must be in format: `#XXXXX` (alphanumeric)
+- Get your tag from in-game profile
+- App automatically adds `#` if you forget it
 
 ## 📝 License
 
