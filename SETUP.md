@@ -1,13 +1,12 @@
 # Clash of Clans Account Manager - Setup Guide
 
-A complete full-stack application to track multiple Clash of Clans accounts with a Flutter frontend and Flask backend API that integrates with the official Clash of Clans API.
+A Flutter mobile application to track multiple Clash of Clans accounts. The app calls the official Clash of Clans API directly with no backend server required.
 
 ## Project Structure
 
 ```
 coc/
 ├── app/           # Flutter mobile application
-├── api/           # Flask REST API backend  
 ├── README.md      # Project overview and features
 ├── SETUP.md       # This setup guide
 ├── INTEGRATION.md # Architecture and integration details
@@ -19,40 +18,30 @@ coc/
 
 ### Prerequisites
 
-- Python 3.8+ (for API)
-- Flutter 3.0+ (for app)
+- Flutter 3.0+
 - Dart SDK (included with Flutter)
 - Git
+- Clash of Clans API Key (see below)
 
-### API Setup (Flask Backend)
+### 1. Get Clash of Clans API Key
 
-```bash
-# Navigate to API directory
-cd api
+1. Visit https://developer.clashofclans.com/
+2. Login or create an account
+3. Create a new application
+4. Generate an API key
+5. Copy your API key (you'll need it in step 3)
 
-# Create virtual environment
-python -m venv venv
+### 2. Update API Key in App
 
-# Activate environment
-# Linux/macOS:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
+Edit `app/lib/services/api_service.dart` and replace:
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file (optional - for API key)
-cp .env.example .env
-# Edit .env and add COC_API_KEY if you have one
-
-# Run the API server
-python app.py
+```dart
+const String COC_API_KEY = 'YOUR_API_KEY_HERE';
 ```
 
-The API will be available at `http://localhost:5000`
+with your actual API key from step 1.
 
-### App Setup (Flutter Frontend)
+### 3. Run Flutter App
 
 ```bash
 # Navigate to app directory
@@ -67,122 +56,66 @@ flutter run
 
 ## Prerequisites
 
-### For API
-- Python 3.8 or higher
-- pip (Python package manager)
-
-### For App
 - Flutter SDK (3.0.0+)
-- Dart SDK
+- Dart SDK (included with Flutter)
 - Android SDK (for Android development)
 - Xcode (for iOS development on macOS)
 
-## API Documentation
-
-### Base URL
-```
-http://localhost:5000
-```
-
-### Main Endpoints
-
-- `GET /api/health` - Health check (verify API is running)
-- `GET /api/accounts` - List all tracked Clash of Clans accounts
-- `POST /api/accounts` - Add new account (requires player_tag)
-- `GET /api/accounts/<id>` - Get account details
-- `GET /api/accounts/<id>/stats` - Get detailed stats including clan info
-- `POST /api/accounts/<id>/refresh` - Refresh account data from official API
-- `DELETE /api/accounts/<id>` - Remove account from tracking
-
-For detailed documentation, see [API_DOCUMENTATION.md](api/API_DOCUMENTATION.md)
-
-## Getting Clash of Clans API Key (Optional)
-
-For live data instead of demo mode:
-
-1. Visit https://developer.clashofclans.com/
-2. Create account and register application
-3. Generate API token
-4. Add to `.env`: `COC_API_KEY=your_token`
-
-Without the key, the system generates realistic mock data for testing.
-
 ## App Architecture
 
-The Flutter app is structured with:
+The Flutter app uses:
 - Material 3 design system
-- HTTP client (Singleton ApiService) for API communication
-- Separate screens: AddAccountScreen, AccountDetailsScreen
-- Account list view with real-time statistics
+- HTTP client (Singleton ApiService) for direct Clash of Clans API calls
+- Local in-memory account management
+- Screens: PlayerSearchScreen, AccountDetailsScreen, UpgradesScreen
+- Account list with real-time statistics
 - Support for Android and iOS
+
+## How It Works
+
+1. **Add Account**: Enter a player tag (e.g., #P92VQC8UG) in PlayerSearchScreen
+2. **Fetch Data**: App calls Clash of Clans API directly with your API key
+3. **Display Info**: Show player stats including:
+   - Town Hall level
+   - Trophies
+   - Clan information
+   - Combat statistics
+4. **Track Upgrades**: View buildings, research, and pets currently under construction
+5. **Refresh**: Pull latest data anytime with the refresh button
 
 ## Project Files
 
-### API (`/api`)
-- `app.py` - Main Flask REST API application
-- `models.py` - ClashOfClansAccount data model
-- `coc_service.py` - Clash of Clans API integration service
-- `requirements.txt` - Python dependencies (Flask, requests, python-dotenv)
-- `.env.example` - Environment variables template
-- `.env` - API key configuration (create from example)
-- `API_DOCUMENTATION.md` - Complete API endpoint documentation
-
 ### App (`/app`)
-- `lib/main.dart` - App entry point and home screen with account list
-- `lib/services/api_service.dart` - HTTP client for API communication
-- `lib/screens/add_account_screen.dart` - Add new account UI
-- `lib/screens/account_details_screen.dart` - View account statistics
-- `pubspec.yaml` - Flutter dependencies (http, material, etc.)
-- `test/widget_test.dart` - Widget tests
+- `lib/main.dart` - App entry point and home screen (player list management)
+- `lib/services/api_service.dart` - HTTP client for Clash of Clans API (direct calls)
+- `lib/screens/player_search_screen.dart` - Add new player UI with tag validation
+- `lib/screens/account_details_screen.dart` - View player statistics
+- `lib/screens/upgrades_screen.dart` - Track buildings/research/pets in progress
+- `pubspec.yaml` - Flutter dependencies
 
 ## Development
 
-### API Development
+### Modify API Integration
 
-To modify API endpoints or add features, edit `api/app.py`:
+Edit `app/lib/services/api_service.dart` to:
+- Change the Clash of Clans API endpoint (currently https://api.clashofclans.com/v1)
+- Add new API methods (getWarLog, getClanWarLeague, etc.)
+- Modify response parsing
 
-```python
-@app.route('/api/accounts/<id>/custom', methods=['GET'])
-def custom_endpoint(id):
-    account = get_account(id)
-    return jsonify({'custom': 'response'})
-```
+### Modify UI
 
-To modify data models, edit `api/models.py`.
-
-To add Clash of Clans API features, edit `api/coc_service.py`.
-
-### App Development
-
-To modify the UI, edit files in `app/lib/`:
+Edit files in `app/lib/`:
 - Main layout: `main.dart`
-- Add account: `screens/add_account_screen.dart`
-- View details: `screens/account_details_screen.dart`
+- Player search: `screens/player_search_screen.dart`
+- Player details: `screens/account_details_screen.dart`
+- Upgrades view: `screens/upgrades_screen.dart`
 
-To add packages, edit `app/pubspec.yaml` and run:
+### Add Packages
+
+Edit `app/pubspec.yaml` and run:
 ```bash
 cd app
 flutter pub get
-```
-
-## Testing
-
-### API Health Check
-```bash
-curl http://localhost:5000/api/health
-```
-
-### Add Test Account
-```bash
-curl -X POST http://localhost:5000/api/accounts \
-  -H "Content-Type: application/json" \
-  -d '{"player_tag": "#P92VQC8UG"}'
-```
-
-### App Tests
-```bash
-cd app
-flutter test
 ```
 
 ## Building for Production
@@ -205,40 +138,27 @@ cd app
 flutter build web --release
 ```
 
-## Environment Configuration
-
-The API uses environment variables. Create `api/.env`:
-
-```bash
-cp api/.env.example api/.env
-```
-
-Edit `api/.env` with:
-```
-COC_API_KEY=your_actual_api_key_from_developer_clashofclans_com
-FLASK_ENV=development
-FLASK_DEBUG=True
-```
-
-**Without COC_API_KEY:** System runs in demo mode with mock data.
-
 ## Troubleshooting
 
-### Flask API not starting
-- Ensure Python 3.8+ is installed
-- Try: `python -m flask run`
-- Check port 5000 is not in use
+### App won't start
+- Ensure `flutter doctor` shows no errors
+- Run `flutter clean && flutter pub get`
+- Check Flutter version: `flutter --version` (should be 3.0+)
 
-### Flutter issues
-- Ensure `flutter --version` works
-- Run `flutter doctor` to check environment
-- Clear build: `flutter clean && flutter pub get`
+### "Invalid API Key" error
+- Verify API key in `.dart` file is correct
+- Check API key is still active at https://developer.clashofclans.com/
+- Try regenerating the API key
+
+### "Player not found" error
+- Verify player tag format (should start with #)
+- Ensure tag exists in official Clash of Clans game
 
 ## Contributing
 
 1. Create a feature branch from `main`
 2. Make your changes
-3. Test thoroughly
+3. Test thoroughly on both Android and iOS
 4. Submit a pull request
 
 ## License

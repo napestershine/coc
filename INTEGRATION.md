@@ -2,102 +2,577 @@
 
 ## Overview
 
-The Clash of Clans Account Manager is a full-stack application for tracking multiple Clash of Clans player accounts. It consists of:
+The Clash of Clans Account Manager is a Flutter mobile application that tracks multiple Clash of Clans player accounts. The app communicates directly with the official Clash of Clans API with no backend server required.
 
-- **Backend**: Flask REST API (`/api`) - integrates with Clash of Clans official API
-- **Frontend**: Flutter Mobile App (`/app`) - displays account data and statistics
-- **Integration**: HTTP-based REST communication between backend and frontend
-- **External API**: Official Clash of Clans API (https://api.clashofclans.com/v1)
+## Architecture
 
----
+```
+┌─────────────────────────────────┐
+│   Flutter Mobile App            │
+│   (iOS/Android)                 │
+├─────────────────────────────────┤
+│   Local State Management        │
+│   - _playerTags: List<String>   │
+│   - _playerData: List<COCAccount>
+├─────────────────────────────────┤
+│   HTTP Client (ApiService)      │
+│   Bearer Token Authentication   │
+├─────────────────────────────────┤
+│   HTTPS Requests                │
+│   https://api.clashofclans.com/v1
+└─────────────────────────────────┘
+```
 
 ## Project Structure
 
 ```
 coc/
-├── api/                          # Flask API Backend
-│   ├── app.py                   # Main Flask application
-│   ├── models.py                # Account models and database logic
-│   ├── coc_service.py           # CoC data service (API integration)
-│   ├── requirements.txt         # Python dependencies
-│   ├── .env                     # Environment configuration
-│   ├── .env.example
-│   ├── API_DOCUMENTATION.md     # Complete API documentation
-│   ├── run.sh / run.bat         # Startup scripts
-│   └── README.md
-│
-├── app/                          # Flutter Mobile App
+├── app/                          # Flutter Mobile App (ONLY)
 │   ├── lib/
-│   │   ├── main.dart            # App entry point and home screen
+│   │   ├── main.dart            # App entry point & home screen
 │   │   ├── services/
-│   │   │   └── api_service.dart # HTTP client for API communication
+│   │   │   └── api_service.dart # HTTP client (direct API calls)
 │   │   └── screens/
-│   │       ├── add_account_screen.dart       # Add account UI
-│   │       └── account_details_screen.dart   # Account details UI
+│   │       ├── player_search_screen.dart      # Add player UI
+│   │       ├── account_details_screen.dart    # Account details
+│   │       └── upgrades_screen.dart           # Track upgrades
 │   ├── pubspec.yaml             # Flutter dependencies
-│   ├── test/
-│   │   └── widget_test.dart
-│   └── run.sh / run.bat
+│   └── test/
+│       └── widget_test.dart
 │
-└── INTEGRATION.md               # This file
+├── README.md                    # Project overview
+├── SETUP.md                     # Setup instructions  
+├── INTEGRATION.md               # This file (architecture guide)
+├── LICENSE                      # License information
+└── .gitignore                   # Git ignore configuration
 ```
-
----
 
 ## Features
 
-### Backend API Features
-- ✅ Track multiple Clash of Clans player accounts
-- ✅ Fetch live player data from official Clash of Clans API
-- ✅ Store comprehensive player statistics (TH level, trophies, war stars)
-- ✅ Display clan information and membership details
-- ✅ Track combat statistics (attacks, defenses, wins)
-- ✅ Retrieve troop and hero information
-- ✅ Automatic and manual data refresh
-- ✅ Demo mode with mock data when API key not available
+### Core Features
+- ✅ Add multiple Clash of Clans accounts by player tag
+- ✅ Direct integration with official Clash of Clans API
+- ✅ Display player statistics in real-time
+- ✅ Track account upgrades (buildings, research, pets)
+- ✅ Clan information display
+- ✅ Combat statistics and achievements
+- ✅ Manual refresh for current data
 - ✅ Remove accounts from tracking
-
-### Mobile App Features
-- ✅ View all tracked Clash of Clans accounts
-- ✅ Add new accounts by player tag (e.g., #P92VQC8UG)
-- ✅ Display Town Hall level prominently on account cards
-- ✅ View detailed account statistics and clan information
-- ✅ See trophy count, war stars, and combat history
-- ✅ Manual refresh for real-time data sync
-- ✅ Delete accounts from tracking
-- ✅ Beautiful Material 3 UI with proper spacing
+- ✅ Beautiful Material 3 design
 - ✅ Error handling and user feedback
 
----
+### Supported Statistics
+- Town Hall level
+- Trophies and best trophies
+- War stars and attack/defense wins
+- Clan information and role
+- Experience level
+- Heroes and spells information
+- In-progress building/research/pet upgrades
+- Time remaining for upgrades
 
-## API Endpoints
+## Clash of Clans API Endpoints
 
-### Core Endpoints
+### Official API Used
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check - verify API is running |
-| GET | `/api/accounts` | List all tracked Clash of Clans accounts |
-| POST | `/api/accounts` | Add new Clash of Clans player account |
-| GET | `/api/accounts/<id>` | Get account details with player info |
-| GET | `/api/accounts/<id>/stats` | Get comprehensive stats including clan/troop data |
-| POST | `/api/accounts/<id>/refresh` | Refresh account data from official API |
-| DELETE | `/api/accounts/<id>` | Delete account from tracking |
+Base URL: `https://api.clashofclans.com/v1`
 
-**Request Format for Adding Account:**
-```json
-{
-  "player_tag": "#P92VQC8UG"
+**Endpoints called by the app:**
+
+- `GET /players/{playerTag}` - Get player information
+- `GET /clans/{clanTag}` - Get clan information
+
+**Player Tag Format:**
+```
+#P92VQC8UG  (always starts with #)
+```
+
+**Authentication:**
+```
+Header: Authorization: Bearer YOUR_API_KEY
+```
+
+## Data Models
+
+### COCAccount Model (Dart/Flutter)
+
+```dart
+class COCAccount {
+  String playerTag                    // Player tag (e.g., #P92VQC8UG)
+  String playerName                   // Player name
+  int townHallLevel                   // Town Hall level (1-14+)
+  int trophies                        // Current trophies
+  int bestTrophies                    // Best trophies achieved
+  int warStars                        // Total war stars
+  String clanName                     // Current clan name
+  String clanRank                     // Rank within clan
+  int attackWins                      // Total attack wins
+  int defenseWins                     // Total defense wins
+  Map<String, dynamic> playerInfo     // Full player data from API
+  Map<String, dynamic> clanInfo       // Full clan data from API
+  DateTime fetchedAt                  // Time data was fetched
 }
 ```
 
-**Note:** Player tags start with `#` and are required for all operations.
+### Upgrade Model
 
-For detailed API documentation, see [API_DOCUMENTATION.md](api/API_DOCUMENTATION.md)
+```dart
+class Upgrade {
+  String name                         // Building/research/pet name
+  String type                         // 'building', 'research', or 'pet'
+  int level                           // Current level
+  int nextLevel                       // Next level to upgrade to
+  DateTime completeTime               // When upgrade finishes
+  int timeRemaining                   // Seconds remaining
+}
+```
 
----
+### Raw API Response Example
 
-## Data Models
+```json
+{
+  "tag": "#P92VQC8UG",
+  "name": "Player_C8UG",
+  "townHallLevel": 11,
+  "trophies": 7503,
+  "bestTrophies": 4577,
+  "warStars": 281,
+  "expLevel": 89,
+  "clanRank": 34,
+  "attackWins": 444,
+  "defenseWins": 185,
+  "clan": {
+    "tag": "#9CYV8C",
+    "name": "Dragon Force",
+    "level": 19
+  },
+  "buildingsUnderConstruction": [
+    {
+      "name": "Barbarian King",
+      "level": 49,
+      "completeTime": "2025-02-17T10:30:00.000Z"
+    }
+  ],
+  "researchUnderConstruction": [
+    {
+      "name": "Barbarian",
+      "level": 8,
+      "completeTime": "2025-02-17T12:45:00.000Z"
+    }
+  ]
+}
+```
+
+## Setup Instructions
+
+### Prerequisites
+
+- Flutter 3.0+
+- Dart SDK (included with Flutter)
+- Git
+- Clash of Clans API Key from https://developer.clashofclans.com/
+
+### Step 1: Get Clash of Clans API Key
+
+1. Go to https://developer.clashofclans.com/
+2. Create an account
+3. Create a new application/API key
+4. Copy your API key to clipboard
+
+### Step 2: Clone Repository
+
+```bash
+git clone <repository_url>
+cd coc
+```
+
+### Step 3: Add API Key to Flutter App
+
+Edit `app/lib/services/api_service.dart`:
+
+```dart
+const String COC_API_KEY = 'YOUR_API_KEY_HERE';
+```
+
+Replace `YOUR_API_KEY_HERE` with your actual API key from step 1.
+
+### Step 4: Install Dependencies
+
+```bash
+cd app
+flutter pub get
+```
+
+### Step 5: Run the App
+
+```bash
+flutter run
+```
+
+Or with a specific device:
+```bash
+flutter run -d <device_name>
+```
+
+## Usage
+
+### Adding an Account
+
+1. Launch the Flutter app
+2. Tap the **+** button (Floating Action Button)
+3. Enter your Clash of Clans player tag:
+   - Format: `#XXXXXXXXXX` (numbers and letters)
+   - Example: `#P92VQC8UG`
+   - If you forget the `#`, it will be added automatically
+4. Tap **Add Player**
+5. Player data will be fetched from the official API
+6. Account will appear in the main list
+
+**Finding Your Player Tag:**
+1. Open Clash of Clans game
+2. Tap your profile icon
+3. Go to Player Information
+4. Your player tag is displayed at the top
+
+### Viewing Account Details
+
+1. Tap on any account card in the list
+2. View player information:
+   - **Town Hall Level** and **Trophies** (highlighted)
+   - **Clan Information** (if in a clan)
+   - **Combat Statistics** (attacks, defenses, war stars)
+3. Tap **Refresh** button (top right) to update data
+4. Tap **View Upgrades** to see buildings/research in progress
+
+### Tracking Upgrades
+
+1. On the account details screen, tap **View Upgrades**
+2. View all in-progress upgrades:
+   - **Buildings** - Town structures being upgraded
+   - **Research** - Lab troops/spells being researched
+   - **Pets** - Hero pets being upgraded
+3. Time remaining counts down automatically
+4. Tap **Refresh** to update times
+
+### Removing an Account
+
+1. On the home screen, swipe left on any account (if implemented)
+2. Or tap the account and use the menu option to delete
+
+## API Service Implementation
+
+### Code Structure (app/lib/services/api_service.dart)
+
+```dart
+class ApiService {
+  // Singleton instance
+  static final ApiService _instance = ApiService._internal();
+  
+  factory ApiService() {
+    return _instance;
+  }
+  
+  ApiService._internal();
+  
+  // Get headers with Bearer token authentication
+  static Map<String, String> _getHeaders() {
+    return {
+      'Authorization': 'Bearer $COC_API_KEY',
+      'Content-Type': 'application/json',
+    };
+  }
+  
+  // Get player information
+  Future<COCAccount?> getPlayer(String playerTag) async {
+    final encodedTag = Uri.encodeComponent(playerTag);
+    final response = await http.get(
+      Uri.parse('https://api.clashofclans.com/v1/players/$encodedTag'),
+      headers: _getHeaders(),
+    ).timeout(const Duration(seconds: 10));
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return COCAccount.fromJson(data);
+    }
+    throw Exception('Failed to load player');
+  }
+  
+  // Get clan information
+  Future<Map<String, dynamic>?> getClan(String clanTag) async {
+    final encodedTag = Uri.encodeComponent(clanTag);
+    final response = await http.get(
+      Uri.parse('https://api.clashofclans.com/v1/clans/$encodedTag'),
+      headers: _getHeaders(),
+    ).timeout(const Duration(seconds: 10));
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to load clan');
+  }
+  
+  // Get upgrades in progress
+  Future<Map<String, dynamic>?> getUpgrades(String playerTag) async {
+    final account = await getPlayer(playerTag);
+    if (account == null) return null;
+    
+    return {
+      'buildings': _parseUpgrades(account.playerInfo['buildingsUnderConstruction']),
+      'research': _parseUpgrades(account.playerInfo['researchUnderConstruction']),
+      'pets': _parseUpgrades(account.playerInfo['petsUnderConstruction']),
+    };
+  }
+}
+```
+
+## Network Communication Flow
+
+### Adding a Player
+
+```
+User enters player tag (#P92VQC8UG)
+    ↓
+PlayerSearchScreen validates format
+    ↓
+_addPlayer() called in main.dart
+    ↓
+_loadPlayerData(playerTag) called
+    ↓
+ApiService().getPlayer(playerTag) called
+    ↓
+HTTP GET to https://api.clashofclans.com/v1/players/%23P92VQC8UG
+with Authorization: Bearer COC_API_KEY header
+    ↓
+Response parsed into COCAccount object
+    ↓
+_playerData[index] = account
+setState() called
+    ↓
+PlayerCard widget updated on screen
+```
+
+### Data Refresh
+
+```
+User taps refresh button
+    ↓
+_refreshAccount() called (details screen)
+OR
+_refreshUpgrades() called (upgrades screen)
+    ↓
+ApiService().getPlayer(playerTag) called
+    ↓
+HTTP GET to CoC API
+    ↓
+Updated data displayed
+    ↓
+SnackBar shows "Account refreshed"
+```
+
+## Error Handling
+
+### Common Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Unauthorized" (401) | Invalid or expired API key | Regenerate at https://developer.clashofclans.com/ |
+| "Not Found" (404) | Invalid player tag | Verify tag format: #XXXXXXXXXX |
+| "Connection timeout" | Official API unavailable | Check internet connection |
+| "Invalid player tag format" | Wrong format entered | Use format: #P92VQC8UG |
+
+### Error Handling in App
+
+```dart
+Future<void> _loadPlayerData(String playerTag) async {
+  try {
+    final account = await ApiService().getPlayer(playerTag);
+    if (account != null) {
+      setState(() {
+        _playerData[index] = account;
+      });
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${e.toString()}')),
+    );
+  }
+}
+```
+
+## Data Storage
+
+### Current Implementation: Session-Based (In-Memory)
+
+- Players stored in `_playerTags` list during app session
+- Data lost when app closes
+- Suitable for quick lookups and real-time updates
+
+### Recommended: Persistent Storage
+
+For production, implement SharedPreferences:
+
+```dart
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> _savePlayerTags(List<String> tags) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setStringList('player_tags', tags);
+}
+
+Future<List<String>> _loadPlayerTags() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getStringList('player_tags') ?? [];
+}
+```
+
+Add to `pubspec.yaml`:
+```yaml
+dependencies:
+  shared_preferences: ^2.0.0
+```
+
+## Performance Considerations
+
+### Current Optimizations
+- ✅ Singleton ApiService pattern (reuse HTTP client)
+- ✅ Timeout handling (10 seconds per request)
+- ✅ Efficient JSON parsing with native Dart
+
+### Potential Improvements
+- [ ] Implement response caching with TTL
+- [ ] Add request batching for multiple players
+- [ ] Implement local database with Hive/Sqflite
+- [ ] Add pagination for large data sets
+- [ ] Background refresh using WorkManager
+- [ ] Image caching for badges/crests
+
+## Troubleshooting
+
+### App Won't Connect to API
+
+```bash
+# Check internet connection
+# On physical device, verify WiFi is connected
+# On emulator, check WiFi is available to virtual machine
+```
+
+### "Invalid API Key" Error
+
+```
+1. Copy API key exactly from developer.clashofclans.com
+2. Replace YOUR_API_KEY_HERE in api_service.dart
+3. Rebuild and restart app
+4. Check for trailing spaces in key
+```
+
+### Player Tag Not Found
+
+```
+1. Verify tag starts with # (app adds it automatically)
+2. Check tag exists in official Clash of Clans game
+3. Player account may be inactive or deleted
+4. Try refreshing (sometimes takes a moment to update)
+```
+
+### No Internet Connection
+
+```
+1. Check WiFi/network is working
+2. Verify app has internet permission (AndroidManifest.xml)
+3. Check firewall isn't blocking HTTPS traffic
+4. Try a different network or hotspot
+```
+
+## Development Workflow
+
+### Making Changes to API Integration
+
+1. Edit `app/lib/services/api_service.dart`
+2. Add new methods or modify existing ones
+3. Run `flutter hot reload` or `flutter run` to test
+4. Check console for errors
+
+### Making UI Changes
+
+1. Edit screens in `app/lib/screens/`
+2. Or main layout in `app/lib/main.dart`
+3. Flutter hot reload automatically updates UI
+4. Test on multiple screen sizes
+
+### Adding New Packages
+
+1. Edit `app/pubspec.yaml`
+2. Add package under `dependencies:`
+3. Run: `flutter pub get`
+4. Import and use in code
+
+## Clash of Clans API Documentation
+
+For complete API reference, see:
+https://developer.clashofclans.com/#/documentation
+
+### Key Endpoints
+
+- `/players/{playerTag}` - Complete player data
+- `/clans/{clanTag}` - Complete clan data
+- `/playerranks/globalranks` - Global leaderboard
+- `/clanranks/globalranks` - Clan leaderboard
+
+### Authentication
+
+Clash of Clans API uses Bearer token authentication:
+
+```
+Authorization: Bearer YOUR_API_KEY
+```
+
+### Rate Limiting
+
+- Requests are rate-limited by Clash of Clans
+- Recommended: cache data for 5 minutes minimum
+- Refresh manually when needed
+
+## Future Enhancements
+
+### Planned Features
+- [ ] Persistent player storage (SharedPreferences)
+- [ ] War log history tracking
+- [ ] Player comparison view
+- [ ] Push notifications for upgrade completion
+- [ ] Dark mode support
+- [ ] Multiple language support
+- [ ] Offline mode with cached data
+- [ ] Clan roster view
+- [ ] War predictions
+
+### Performance Improvements
+- [ ] Response caching system
+- [ ] Lazy loading for clans
+- [ ] Image caching
+- [ ] Background sync
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Support
+
+For issues:
+1. Check error message in app
+2. Verify API key is valid
+3. Check player tag format
+4. Review this documentation
+5. Check console logs for details
+
+## License
+
+This project is provided under the terms in the LICENSE file.
+
+
 
 ### COCAccount Model (Dart/Flutter)
 
